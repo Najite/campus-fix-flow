@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { MessageSquare, CheckCircle, Clock, AlertTriangle, Tool, Calendar } from 'lucide-react';
+import { MessageSquare, CheckCircle, Clock, AlertTriangle, Wrench, Calendar } from 'lucide-react';
 import { getCurrentUser } from '@/utils/auth';
 import { db } from '@/utils/database';
 import { Complaint } from '@/types';
@@ -152,7 +151,7 @@ const MaintenanceDashboard = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Assigned to Me</CardTitle>
-              <Tool className="h-4 w-4 text-muted-foreground" />
+              <Wrench className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.total}</div>
