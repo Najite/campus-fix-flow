@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, MessageSquare, Clock, CheckCircle, AlertCircle } from 'lucide-react';
-import { getCurrentUser } from '@/utils/auth';
+import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/utils/database';
 import { Complaint } from '@/types';
 import ComplaintForm from '../Complaints/ComplaintForm';
@@ -16,17 +16,17 @@ const StudentDashboard = () => {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [showComplaintForm, setShowComplaintForm] = useState(false);
   const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(null);
-  const currentUser = getCurrentUser();
+  const { user, profile } = useAuth();
 
   useEffect(() => {
-    if (currentUser) {
+    if (user) {
       loadComplaints();
     }
-  }, [currentUser]);
+  }, [user]);
 
   const loadComplaints = () => {
-    if (currentUser) {
-      const userComplaints = db.complaints.getByStudentId(currentUser.id);
+    if (user) {
+      const userComplaints = db.complaints.getByStudentId(user.id);
       setComplaints(userComplaints);
     }
   };
@@ -91,7 +91,7 @@ const StudentDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Student Dashboard</h1>
-                <p className="text-gray-600">Welcome back, {currentUser?.name}</p>
+                <p className="text-gray-600">Welcome back, {profile?.name}</p>
               </div>
               <Button onClick={() => setShowComplaintForm(true)} className="bg-blue-600 hover:bg-blue-700">
                 <Plus className="h-4 w-4 mr-2" />

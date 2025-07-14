@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Upload, X } from 'lucide-react';
-import { getCurrentUser } from '@/utils/auth';
+import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/utils/database';
 import { emailService } from '@/utils/emailService';
 import { Complaint } from '@/types';
@@ -31,7 +31,7 @@ const ComplaintForm = ({ onSubmit, onCancel }: ComplaintFormProps) => {
   const [images, setImages] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-  const currentUser = getCurrentUser();
+  const { user, profile } = useAuth();
 
   const categories = [
     { value: 'plumbing', label: 'Plumbing' },
@@ -73,7 +73,7 @@ const ComplaintForm = ({ onSubmit, onCancel }: ComplaintFormProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser) return;
+    if (!user || !profile) return;
 
     setIsSubmitting(true);
 
@@ -81,8 +81,8 @@ const ComplaintForm = ({ onSubmit, onCancel }: ComplaintFormProps) => {
       const complaintId = `complaint-${Date.now()}`;
       const newComplaint: Complaint = {
         id: complaintId,
-        studentId: currentUser.id,
-        studentName: currentUser.name,
+        studentId: user.id,
+        studentName: profile.name,
         title: formData.title,
         description: formData.description,
         category: formData.category as any,
@@ -103,8 +103,8 @@ const ComplaintForm = ({ onSubmit, onCancel }: ComplaintFormProps) => {
 
       // Send confirmation email to student
       await emailService.sendComplaintSubmissionEmail(
-        currentUser.email,
-        currentUser.name,
+        user.email || '',
+        profile.name,
         complaintId,
         formData.title
       );

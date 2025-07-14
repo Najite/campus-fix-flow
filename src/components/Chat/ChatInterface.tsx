@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Send, User, Building2, Wrench } from 'lucide-react';
-import { getCurrentUser } from '@/utils/auth';
+import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/utils/database';
 import { Complaint, ChatMessage } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -20,7 +20,7 @@ const ChatInterface = ({ complaint, onBack }: ChatInterfaceProps) => {
   const [newMessage, setNewMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const currentUser = getCurrentUser();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -42,15 +42,15 @@ const ChatInterface = ({ complaint, onBack }: ChatInterfaceProps) => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !currentUser) return;
+    if (!newMessage.trim() || !user || !profile) return;
 
     const messageId = `msg-${Date.now()}`;
     const message: ChatMessage = {
       id: messageId,
       complaintId: complaint.id,
-      userId: currentUser.id,
-      userName: currentUser.name,
-      userRole: currentUser.role,
+      userId: user.id,
+      userName: profile.name,
+      userRole: profile.role,
       message: newMessage.trim(),
       timestamp: new Date().toISOString(),
     };
@@ -61,7 +61,7 @@ const ChatInterface = ({ complaint, onBack }: ChatInterfaceProps) => {
       setNewMessage('');
 
       // Simulate typing indicator for demo
-      if (currentUser.role === 'student') {
+      if (profile.role === 'student') {
         setIsTyping(true);
         setTimeout(() => {
           setIsTyping(false);
@@ -223,12 +223,12 @@ const ChatInterface = ({ complaint, onBack }: ChatInterfaceProps) => {
                       <div
                         key={message.id}
                         className={`flex ${
-                          message.userId === currentUser?.id ? 'justify-end' : 'justify-start'
+                          message.userId === user?.id ? 'justify-end' : 'justify-start'
                         }`}
                       >
                         <div
                           className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                            message.userId === currentUser?.id
+                            message.userId === user?.id
                               ? 'bg-blue-600 text-white'
                               : 'bg-white border'
                           }`}

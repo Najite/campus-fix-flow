@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { authenticateUser } from '@/utils/auth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { User, Lock, Building2 } from 'lucide-react';
 
@@ -14,12 +14,13 @@ interface LoginFormProps {
 }
 
 const LoginForm = ({ role }: LoginFormProps) => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { signIn } = useAuth();
 
   const getRoleInfo = () => {
     switch (role) {
@@ -29,7 +30,7 @@ const LoginForm = ({ role }: LoginFormProps) => {
           description: 'Submit and track maintenance complaints',
           icon: <User className="h-6 w-6" />,
           color: 'bg-blue-500',
-          defaultCreds: { username: 'student', password: 'student123' }
+          defaultCreds: { email: 'student@campus.edu', password: 'student123' }
         };
       case 'admin':
         return {
@@ -37,7 +38,7 @@ const LoginForm = ({ role }: LoginFormProps) => {
           description: 'Manage complaints and assignments',
           icon: <Building2 className="h-6 w-6" />,
           color: 'bg-green-500',
-          defaultCreds: { username: 'admin', password: 'admin123' }
+          defaultCreds: { email: 'admin@campus.edu', password: 'admin123' }
         };
       case 'maintenance':
         return {
@@ -45,7 +46,7 @@ const LoginForm = ({ role }: LoginFormProps) => {
           description: 'View and update assigned work orders',
           icon: <Lock className="h-6 w-6" />,
           color: 'bg-orange-500',
-          defaultCreds: { username: 'maintenance', password: 'maintenance123' }
+          defaultCreds: { email: 'maintenance@campus.edu', password: 'maintenance123' }
         };
     }
   };
@@ -57,22 +58,12 @@ const LoginForm = ({ role }: LoginFormProps) => {
     setIsLoading(true);
 
     try {
-      const user = authenticateUser(username, password);
+      const { error } = await signIn(email, password);
       
-      if (!user) {
+      if (error) {
         toast({
           title: 'Login Failed',
-          description: 'Invalid username or password',
-          variant: 'destructive',
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      if (user.role !== role) {
-        toast({
-          title: 'Access Denied',
-          description: `This portal is for ${role}s only`,
+          description: error.message,
           variant: 'destructive',
         });
         setIsLoading(false);
@@ -81,7 +72,7 @@ const LoginForm = ({ role }: LoginFormProps) => {
 
       toast({
         title: 'Login Successful',
-        description: `Welcome back, ${user.name}!`,
+        description: 'Welcome back!',
       });
 
       // Redirect to appropriate dashboard
@@ -99,7 +90,7 @@ const LoginForm = ({ role }: LoginFormProps) => {
   };
 
   const handleDemoLogin = () => {
-    setUsername(roleInfo.defaultCreds.username);
+    setEmail(roleInfo.defaultCreds.email);
     setPassword(roleInfo.defaultCreds.password);
   };
 
@@ -118,13 +109,13 @@ const LoginForm = ({ role }: LoginFormProps) => {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="username"
-                type="text"
-                placeholder="Enter your username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                id="email"
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
@@ -147,7 +138,7 @@ const LoginForm = ({ role }: LoginFormProps) => {
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-600 mb-2">Demo Credentials:</p>
             <div className="text-xs text-gray-500 space-y-1">
-              <p><strong>Username:</strong> {roleInfo.defaultCreds.username}</p>
+              <p><strong>Email:</strong> {roleInfo.defaultCreds.email}</p>
               <p><strong>Password:</strong> {roleInfo.defaultCreds.password}</p>
             </div>
             <Button 

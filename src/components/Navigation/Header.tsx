@@ -3,17 +3,17 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { User, LogOut, Settings } from 'lucide-react';
-import { getCurrentUser, logout } from '@/utils/auth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
 const Header = () => {
-  const currentUser = getCurrentUser();
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await signOut();
     toast({
       title: 'Logged Out',
       description: 'You have been successfully logged out.',
@@ -21,7 +21,7 @@ const Header = () => {
     navigate('/login/student');
   };
 
-  if (!currentUser) return null;
+  if (!user || !profile) return null;
 
   return (
     <header className="bg-white border-b border-gray-200 px-4 py-3">
@@ -36,7 +36,7 @@ const Header = () => {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center space-x-2">
               <User className="h-4 w-4" />
-              <span>{currentUser.name}</span>
+              <span>{profile.name}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">

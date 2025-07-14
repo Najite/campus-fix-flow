@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { MessageSquare, CheckCircle, Clock, AlertTriangle, Wrench, Calendar } from 'lucide-react';
-import { getCurrentUser } from '@/utils/auth';
+import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/utils/database';
 import { Complaint } from '@/types';
 import { emailService } from '@/utils/emailService';
@@ -17,18 +17,18 @@ const MaintenanceDashboard = () => {
   const [assignedComplaints, setAssignedComplaints] = useState<Complaint[]>([]);
   const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(null);
   const [workNotes, setWorkNotes] = useState<Record<string, string>>({});
-  const currentUser = getCurrentUser();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (currentUser) {
+    if (user) {
       loadAssignedComplaints();
     }
-  }, [currentUser]);
+  }, [user]);
 
   const loadAssignedComplaints = () => {
-    if (currentUser) {
-      const complaints = db.complaints.getByAssignedTo(currentUser.id);
+    if (user) {
+      const complaints = db.complaints.getByAssignedTo(user.id);
       setAssignedComplaints(complaints);
     }
   };
@@ -45,7 +45,7 @@ const MaintenanceDashboard = () => {
       if (note && note.trim()) {
         const existingComplaint = db.complaints.getById(complaintId);
         if (existingComplaint) {
-          const updatedNotes = [...existingComplaint.notes, `${currentUser?.name}: ${note.trim()}`];
+          const updatedNotes = [...existingComplaint.notes, `${profile?.name}: ${note.trim()}`];
           db.complaints.update(complaintId, { notes: updatedNotes });
         }
         setWorkNotes(prev => ({ ...prev, [complaintId]: '' }));
@@ -78,7 +78,7 @@ const MaintenanceDashboard = () => {
 
     const existingComplaint = db.complaints.getById(complaintId);
     if (existingComplaint) {
-      const updatedNotes = [...existingComplaint.notes, `${currentUser?.name}: ${note.trim()}`];
+      const updatedNotes = [...existingComplaint.notes, `${profile?.name}: ${note.trim()}`];
       db.complaints.update(complaintId, { notes: updatedNotes });
       setWorkNotes(prev => ({ ...prev, [complaintId]: '' }));
       loadAssignedComplaints();
@@ -138,7 +138,7 @@ const MaintenanceDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Maintenance Dashboard</h1>
-                <p className="text-gray-600">Welcome back, {currentUser?.name}</p>
+                <p className="text-gray-600">Welcome back, {profile?.name}</p>
               </div>
             </div>
           </div>

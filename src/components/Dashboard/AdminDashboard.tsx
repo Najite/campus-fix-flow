@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, Users, AlertTriangle, CheckCircle, Clock, MessageSquare, UserPlus } from 'lucide-react';
-import { getCurrentUser } from '@/utils/auth';
+import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/utils/database';
 import { Complaint, User, SystemStats } from '@/types';
 import { emailService } from '@/utils/emailService';
@@ -31,7 +31,7 @@ const AdminDashboard = () => {
     complaintsByPriority: {},
   });
   
-  const currentUser = getCurrentUser();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -199,7 +199,7 @@ const AdminDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Administrator Dashboard</h1>
-                <p className="text-gray-600">Welcome back, {currentUser?.name}</p>
+                <p className="text-gray-600">Welcome back, {profile?.name}</p>
               </div>
             </div>
           </div>

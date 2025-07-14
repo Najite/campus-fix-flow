@@ -1,28 +1,32 @@
 
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getCurrentUser } from '@/utils/auth';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { User, Building2, Wrench } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Wrench, Users, Shield, UserCheck } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
+  const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
-  const currentUser = getCurrentUser();
 
   useEffect(() => {
-    // If user is already logged in, redirect to their dashboard
-    if (currentUser) {
-      navigate(`/${currentUser.role}`);
+    if (!loading && user && profile) {
+      const dashboardRoute = profile.role === 'admin' ? '/admin' : 
+                            profile.role === 'maintenance' ? '/maintenance' : '/student';
+      navigate(dashboardRoute);
     }
-  }, [currentUser, navigate]);
+  }, [user, profile, loading, navigate]);
+
+  if (loading) return <div>Loading...</div>;
+  if (user && profile) return null;
 
   const portals = [
     {
       role: 'student',
       title: 'Student Portal',
       description: 'Submit and track maintenance complaints',
-      icon: <User className="h-8 w-8" />,
+      icon: <UserCheck className="h-8 w-8" />,
       color: 'bg-blue-500 hover:bg-blue-600',
       path: '/login/student'
     },
@@ -30,7 +34,7 @@ const Index = () => {
       role: 'admin',
       title: 'Administrator Portal',
       description: 'Manage complaints and assignments',
-      icon: <Building2 className="h-8 w-8" />,
+      icon: <Shield className="h-8 w-8" />,
       color: 'bg-green-500 hover:bg-green-600',
       path: '/login/admin'
     },
@@ -59,17 +63,17 @@ const Index = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               <div className="p-3 bg-blue-50 rounded-lg">
                 <h3 className="font-medium text-blue-900 mb-2">Student</h3>
-                <p className="text-blue-700">Username: <strong>student</strong></p>
+                <p className="text-blue-700">Email: <strong>student@campus.edu</strong></p>
                 <p className="text-blue-700">Password: <strong>student123</strong></p>
               </div>
               <div className="p-3 bg-green-50 rounded-lg">
                 <h3 className="font-medium text-green-900 mb-2">Administrator</h3>
-                <p className="text-green-700">Username: <strong>admin</strong></p>
+                <p className="text-green-700">Email: <strong>admin@campus.edu</strong></p>
                 <p className="text-green-700">Password: <strong>admin123</strong></p>
               </div>
               <div className="p-3 bg-orange-50 rounded-lg">
                 <h3 className="font-medium text-orange-900 mb-2">Maintenance</h3>
-                <p className="text-orange-700">Username: <strong>maintenance</strong></p>
+                <p className="text-orange-700">Email: <strong>maintenance@campus.edu</strong></p>
                 <p className="text-orange-700">Password: <strong>maintenance123</strong></p>
               </div>
             </div>
