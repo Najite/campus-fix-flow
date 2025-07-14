@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { getCurrentUser } from '@/utils/auth';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -9,15 +9,19 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
-  const currentUser = getCurrentUser();
+  const { user, profile, loading } = useAuth();
   const location = useLocation();
 
-  if (!currentUser) {
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
+
+  if (!user || !profile) {
     return <Navigate to="/login/student" state={{ from: location }} replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(currentUser.role)) {
-    return <Navigate to={`/${currentUser.role}`} replace />;
+  if (allowedRoles && !allowedRoles.includes(profile.role)) {
+    return <Navigate to={`/${profile.role}`} replace />;
   }
 
   return <>{children}</>;

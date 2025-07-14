@@ -14,16 +14,220 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      chat_messages: {
+        Row: {
+          complaint_id: string
+          created_at: string
+          id: string
+          message: string
+          user_id: string
+        }
+        Insert: {
+          complaint_id: string
+          created_at?: string
+          id?: string
+          message: string
+          user_id: string
+        }
+        Update: {
+          complaint_id?: string
+          created_at?: string
+          id?: string
+          message?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_complaint_id_fkey"
+            columns: ["complaint_id"]
+            isOneToOne: false
+            referencedRelation: "complaints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      complaint_notes: {
+        Row: {
+          complaint_id: string
+          created_at: string
+          id: string
+          note: string
+          user_id: string
+        }
+        Insert: {
+          complaint_id: string
+          created_at?: string
+          id?: string
+          note: string
+          user_id: string
+        }
+        Update: {
+          complaint_id?: string
+          created_at?: string
+          id?: string
+          note?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "complaint_notes_complaint_id_fkey"
+            columns: ["complaint_id"]
+            isOneToOne: false
+            referencedRelation: "complaints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "complaint_notes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      complaints: {
+        Row: {
+          assigned_to: string | null
+          building: string
+          category: Database["public"]["Enums"]["complaint_category"]
+          created_at: string
+          description: string
+          id: string
+          images: string[] | null
+          priority: Database["public"]["Enums"]["complaint_priority"]
+          resolved_at: string | null
+          room_number: string
+          specific_location: string | null
+          status: Database["public"]["Enums"]["complaint_status"]
+          student_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          building: string
+          category: Database["public"]["Enums"]["complaint_category"]
+          created_at?: string
+          description: string
+          id?: string
+          images?: string[] | null
+          priority?: Database["public"]["Enums"]["complaint_priority"]
+          resolved_at?: string | null
+          room_number: string
+          specific_location?: string | null
+          status?: Database["public"]["Enums"]["complaint_status"]
+          student_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          building?: string
+          category?: Database["public"]["Enums"]["complaint_category"]
+          created_at?: string
+          description?: string
+          id?: string
+          images?: string[] | null
+          priority?: Database["public"]["Enums"]["complaint_priority"]
+          resolved_at?: string | null
+          room_number?: string
+          specific_location?: string | null
+          status?: Database["public"]["Enums"]["complaint_status"]
+          student_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "complaints_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "complaints_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          phone: string | null
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          phone?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          phone?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { user_uuid: string }
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
+      is_admin: {
+        Args: { user_uuid: string }
+        Returns: boolean
+      }
+      is_maintenance: {
+        Args: { user_uuid: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      complaint_category:
+        | "plumbing"
+        | "electrical"
+        | "hvac"
+        | "structural"
+        | "cleaning"
+        | "other"
+      complaint_priority: "low" | "medium" | "high" | "urgent"
+      complaint_status:
+        | "submitted"
+        | "assigned"
+        | "in-progress"
+        | "resolved"
+        | "closed"
+      user_role: "student" | "admin" | "maintenance"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +354,24 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      complaint_category: [
+        "plumbing",
+        "electrical",
+        "hvac",
+        "structural",
+        "cleaning",
+        "other",
+      ],
+      complaint_priority: ["low", "medium", "high", "urgent"],
+      complaint_status: [
+        "submitted",
+        "assigned",
+        "in-progress",
+        "resolved",
+        "closed",
+      ],
+      user_role: ["student", "admin", "maintenance"],
+    },
   },
 } as const
