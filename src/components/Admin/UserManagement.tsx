@@ -107,17 +107,25 @@ export const UserManagement: React.FC = () => {
 
       if (error) throw error;
 
+      console.log('Sample data result:', data);
+      
+      const userCount = data?.users?.filter((u: any) => u.success)?.length || 0;
+      const complaintCount = data?.complaints?.filter((c: any) => c.success)?.length || 0;
+
       toast({
         title: "Success",
-        description: "Sample data populated successfully",
+        description: `Created ${userCount} users and ${complaintCount} complaints. You can now login with: student@campus.edu, admin@campus.edu, or maintenance@campus.edu (all with password ending in 123)`,
       });
 
-      loadUsers();
+      // Wait for profiles to be created by trigger
+      setTimeout(() => {
+        loadUsers();
+      }, 2000);
     } catch (error) {
       console.error('Error populating sample data:', error);
       toast({
-        title: "Error",
-        description: "Failed to populate sample data",
+        title: "Error", 
+        description: error?.message || "Failed to populate sample data",
         variant: "destructive",
       });
     }
