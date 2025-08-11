@@ -49,7 +49,7 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["user_id"]
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -88,7 +88,7 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["user_id"]
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -150,14 +150,14 @@ export type Database = {
             columns: ["assigned_to"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["user_id"]
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "complaints_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["user_id"]
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -169,7 +169,7 @@ export type Database = {
           phone: string | null
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
-          user_id: string
+          user_id: string | null
           username: string
         }
         Insert: {
@@ -179,7 +179,7 @@ export type Database = {
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
-          user_id: string
+          user_id?: string | null
           username: string
         }
         Update: {
@@ -189,7 +189,7 @@ export type Database = {
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
           username?: string
         }
         Relationships: []
