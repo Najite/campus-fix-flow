@@ -1,14 +1,18 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Wrench, Users, Shield, UserCheck } from 'lucide-react';
+import { Wrench, Users, Shield, UserCheck, Database } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [isPopulating, setIsPopulating] = useState(false);
 
   useEffect(() => {
     if (!loading && user && profile) {
@@ -48,6 +52,32 @@ const Index = () => {
     }
   ];
 
+  const handlePopulateData = async () => {
+    setIsPopulating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('populate-sample-data');
+      
+      if (error) throw error;
+      
+      const userCount = data?.users?.filter((u: any) => u.success)?.length || 0;
+      const complaintCount = data?.complaints?.filter((c: any) => c.success)?.length || 0;
+      
+      toast({
+        title: "Database Populated!",
+        description: `Created ${userCount} users and ${complaintCount} complaints. You can now login with the credentials shown above.`,
+      });
+    } catch (error) {
+      console.error('Error populating data:', error);
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to populate database",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPopulating(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
       <div className="max-w-4xl w-full">
@@ -58,6 +88,30 @@ const Index = () => {
           <p className="text-xl text-gray-600 mb-8">
             Comprehensive complaint tracking and resolution system
           </p>
+          
+          <div className="mb-6">
+            <Button 
+              onClick={handlePopulateData}
+              disabled={isPopulating}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 text-lg"
+            >
+              {isPopulating ? (
+                <>
+                  <Database className="h-5 w-5 mr-2 animate-spin" />
+                  Populating Database...
+                </>
+              ) : (
+                <>
+                  <Database className="h-5 w-5 mr-2" />
+                  Populate Database with Sample Data
+                </>
+              )}
+            </Button>
+            <p className="text-sm text-gray-500 mt-2">
+              Click this button to create sample users and complaints for testing
+            </p>
+          </div>
+          
           <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Demo Login Credentials</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
