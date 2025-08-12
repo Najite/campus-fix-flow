@@ -163,51 +163,7 @@ const LoginForm = ({ role }: LoginFormProps) => {
             </Button>
           </form>
           
-          <div className="mt-6 space-y-4">
-            <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-              <p className="text-sm text-purple-900 font-medium mb-2">First time setup:</p>
-              <Button 
-                onClick={handlePopulateData}
-                disabled={isPopulating}
-                variant="outline"
-                size="sm"
-                className="w-full border-purple-300 text-purple-700 hover:bg-purple-100"
-              >
-                {isPopulating ? (
-                  <>
-                    <Database className="h-4 w-4 mr-2 animate-spin" />
-                    Creating Sample Data...
-                  </>
-                ) : (
-                  <>
-                    <Database className="h-4 w-4 mr-2" />
-                    Create Sample Data & Users
-                  </>
-                )}
-              </Button>
-              <p className="text-xs text-purple-600 mt-1">
-                Click to create demo users and complaints for testing
-              </p>
-            </div>
-            
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600 mb-2">Demo Credentials:</p>
-              <div className="text-xs text-gray-500 space-y-1">
-                <p><strong>Email:</strong> {roleInfo.defaultCreds.email}</p>
-                <p><strong>Password:</strong> {roleInfo.defaultCreds.password}</p>
-              </div>
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm" 
-                className="mt-2 w-full"
-                onClick={handleDemoLogin}
-              >
-                Use Demo Credentials
-              </Button>
-            </div>
-          </div>
-          
+         
           <div className="mt-4 text-center">
             <div className="text-sm text-gray-500">
               Access other portals:
