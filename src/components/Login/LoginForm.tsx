@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { User, Lock, Building2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { User, Lock, Building2, Database } from 'lucide-react';
 
 interface LoginFormProps {
   role: 'student' | 'admin' | 'maintenance';
@@ -17,6 +18,7 @@ const LoginForm = ({ role }: LoginFormProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isPopulating, setIsPopulating] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -94,6 +96,32 @@ const LoginForm = ({ role }: LoginFormProps) => {
     setPassword(roleInfo.defaultCreds.password);
   };
 
+  const handlePopulateData = async () => {
+    setIsPopulating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('populate-sample-data');
+      
+      if (error) throw error;
+      
+      const userCount = data?.users?.filter((u: any) => u.success)?.length || 0;
+      const complaintCount = data?.complaints?.filter((c: any) => c.success)?.length || 0;
+      
+      toast({
+        title: "Database Populated!",
+        description: `Created ${userCount} users and ${complaintCount} complaints. You can now use the demo credentials above to login.`,
+      });
+    } catch (error) {
+      console.error('Error populating data:', error);
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to populate database",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPopulating(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <Card className="w-full max-w-md">
@@ -135,21 +163,49 @@ const LoginForm = ({ role }: LoginFormProps) => {
             </Button>
           </form>
           
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-600 mb-2">Demo Credentials:</p>
-            <div className="text-xs text-gray-500 space-y-1">
-              <p><strong>Email:</strong> {roleInfo.defaultCreds.email}</p>
-              <p><strong>Password:</strong> {roleInfo.defaultCreds.password}</p>
+          <div className="mt-6 space-y-4">
+            <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+              <p className="text-sm text-purple-900 font-medium mb-2">First time setup:</p>
+              <Button 
+                onClick={handlePopulateData}
+                disabled={isPopulating}
+                variant="outline"
+                size="sm"
+                className="w-full border-purple-300 text-purple-700 hover:bg-purple-100"
+              >
+                {isPopulating ? (
+                  <>
+                    <Database className="h-4 w-4 mr-2 animate-spin" />
+                    Creating Sample Data...
+                  </>
+                ) : (
+                  <>
+                    <Database className="h-4 w-4 mr-2" />
+                    Create Sample Data & Users
+                  </>
+                )}
+              </Button>
+              <p className="text-xs text-purple-600 mt-1">
+                Click to create demo users and complaints for testing
+              </p>
             </div>
-            <Button 
-              type="button" 
-              variant="outline" 
-              size="sm" 
-              className="mt-2 w-full"
-              onClick={handleDemoLogin}
-            >
-              Use Demo Credentials
-            </Button>
+            
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-600 mb-2">Demo Credentials:</p>
+              <div className="text-xs text-gray-500 space-y-1">
+                <p><strong>Email:</strong> {roleInfo.defaultCreds.email}</p>
+                <p><strong>Password:</strong> {roleInfo.defaultCreds.password}</p>
+              </div>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                className="mt-2 w-full"
+                onClick={handleDemoLogin}
+              >
+                Use Demo Credentials
+              </Button>
+            </div>
           </div>
           
           <div className="mt-4 text-center">
