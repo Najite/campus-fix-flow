@@ -6,11 +6,30 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, MessageSquare, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/utils/database';
-import { Complaint } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
 import ComplaintForm from '../Complaints/ComplaintForm';
 import ComplaintList from '../Complaints/ComplaintList';
 import ChatInterface from '../Chat/ChatInterface';
+
+interface Complaint {
+  id: string;
+  student_id: string;
+  title: string;
+  description: string;
+  category: string;
+  priority: string;
+  status: string;
+  building: string;
+  room_number: string;
+  specific_location?: string;
+  images?: string[];
+  assigned_to?: string;
+  created_at: string;
+  updated_at: string;
+  resolved_at?: string;
+  student_name?: string;
+  assigned_to_name?: string;
+}
 
 const StudentDashboard = () => {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
@@ -25,9 +44,38 @@ const StudentDashboard = () => {
   }, [user]);
 
   const loadComplaints = () => {
-    if (user) {
-      const userComplaints = db.complaints.getByStudentId(user.id);
-      setComplaints(userComplaints);
+    if (profile) {
+      loadComplaintsFromDB();
+    }
+  };
+
+  const loadComplaintsFromDB = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('complaints')
+        .select(`
+          *,
+          student:profiles!complaints_student_id_fkey(name),
+          assigned_user:profiles!complaints_assigned_to_fkey(name)
+        `)
+        .eq('student_id', profile.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading complaints:', error);
+        return;
+      }
+
+      // Transform the data to match the expected format
+      const transformedComplaints = data.map(complaint => ({
+        ...complaint,
+        student_name: complaint.student?.name || profile.name,
+        assigned_to_name: complaint.assigned_user?.name || null
+      }));
+
+      setComplaints(transformedComplaints);
+    } catch (error) {
+      console.error('Error loading complaints:', error);
     }
   };
 
@@ -183,11 +231,11 @@ const StudentDashboard = () => {
                             </div>
                             <p className="text-gray-600 text-sm mb-2">{complaint.description}</p>
                             <div className="text-xs text-gray-500 space-y-1">
-                              <p><strong>Location:</strong> {complaint.location.building}, Room {complaint.location.roomNumber}</p>
+                              <p><strong>Location:</strong> {complaint.building}, Room {complaint.room_number}</p>
                               <p><strong>Category:</strong> {complaint.category}</p>
-                              <p><strong>Submitted:</strong> {new Date(complaint.createdAt).toLocaleDateString()}</p>
-                              {complaint.assignedToName && (
-                                <p><strong>Assigned to:</strong> {complaint.assignedToName}</p>
+                              <p><strong>Submitted:</strong> {new Date(complaint.created_at).toLocaleDateString()}</p>
+                              {complaint.assigned_to_name && (
+                                <p><strong>Assigned to:</strong> {complaint.assigned_to_name}</p>
                               )}
                             </div>
                           </div>
@@ -231,7 +279,7 @@ const StudentDashboard = () => {
                             {complaint.title}
                           </p>
                           <p className="text-sm text-gray-500">
-                            {new Date(complaint.updatedAt).toLocaleDateString()}
+                            {new Date(complaint.updated_at).toLocaleDateString()}
                           </p>
                         </div>
                       </div>

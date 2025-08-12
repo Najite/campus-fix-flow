@@ -173,7 +173,7 @@ const AdminDashboard = () => {
 
       loadData();
       
-      const maintenanceUser = maintenanceUsers.find(user => user.user_id === maintenanceId);
+      const maintenanceUser = maintenanceUsers.find(user => user.id === maintenanceId);
       toast({
         title: 'Complaint Assigned',
         description: `Complaint assigned to ${maintenanceUser?.name || 'maintenance user'}`,

@@ -6,9 +6,37 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Send, User, Building2, Wrench } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/utils/database';
-import { Complaint, ChatMessage } from '@/types';
-import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+
+interface Complaint {
+  id: string;
+  student_id: string;
+  title: string;
+  description: string;
+  category: string;
+  priority: string;
+  status: string;
+  building: string;
+  room_number: string;
+  specific_location?: string;
+  images?: string[];
+  assigned_to?: string;
+  created_at: string;
+  updated_at: string;
+  resolved_at?: string;
+  student_name?: string;
+  assigned_to_name?: string;
+}
+
+interface ChatMessage {
+  id: string;
+  complaint_id: string;
+  user_id: string;
+  message: string;
+  created_at: string;
+  user_name?: string;
+  user_role?: string;
+}
 
 interface ChatInterfaceProps {
   complaint: Complaint;
@@ -32,8 +60,39 @@ const ChatInterface = ({ complaint, onBack }: ChatInterfaceProps) => {
   }, [messages]);
 
   const loadMessages = () => {
-    const complaintMessages = db.messages.getByComplaintId(complaint.id);
-    setMessages(complaintMessages);
+    loadMessagesFromDB();
+  };
+
+  const loadMessagesFromDB = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select(`
+          *,
+          profiles(name, role)
+        `)
+        .eq('complaint_id', complaint.id)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Error loading messages:', error);
+        return;
+      }
+
+      const transformedMessages = data.map(msg => ({
+        id: msg.id,
+        complaintId: msg.complaint_id,
+        userId: msg.user_id,
+        userName: msg.profiles?.name || 'Unknown User',
+        userRole: msg.profiles?.role || 'unknown',
+        message: msg.message,
+        timestamp: msg.created_at,
+      }));
+
+      setMessages(transformedMessages);
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    }
   };
 
   const scrollToBottom = () => {
@@ -44,50 +103,48 @@ const ChatInterface = ({ complaint, onBack }: ChatInterfaceProps) => {
     e.preventDefault();
     if (!newMessage.trim() || !user || !profile) return;
 
-    const messageId = `msg-${Date.now()}`;
-    const message: ChatMessage = {
-      id: messageId,
-      complaintId: complaint.id,
-      userId: user.id,
-      userName: profile.name,
-      userRole: profile.role,
+    const messageData = {
+      complaint_id: complaint.id,
+      user_id: profile.id,
       message: newMessage.trim(),
-      timestamp: new Date().toISOString(),
     };
 
     try {
-      db.messages.create(message);
-      setMessages(prev => [...prev, message]);
-      setNewMessage('');
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .insert(messageData)
+        .select(`
+          *,
+          profiles(name, role)
+        `)
+        .single();
 
-      // Simulate typing indicator for demo
-      if (profile.role === 'student') {
-        setIsTyping(true);
-        setTimeout(() => {
-          setIsTyping(false);
-          // Simulate admin response
-          const adminResponse: ChatMessage = {
-            id: `msg-${Date.now() + 1}`,
-            complaintId: complaint.id,
-            userId: '1',
-            userName: 'Campus Administrator',
-            userRole: 'admin',
-            message: 'Thank you for the additional information. We will review your complaint and update you soon.',
-            timestamp: new Date().toISOString(),
-          };
-          db.messages.create(adminResponse);
-          setMessages(prev => [...prev, adminResponse]);
-        }, 2000);
+      if (error) {
+        throw error;
       }
+
+      const newMsg = {
+        id: data.id,
+        complaintId: data.complaint_id,
+        userId: data.user_id,
+        userName: data.profiles?.name || profile.name,
+        userRole: data.profiles?.role || profile.role,
+        message: data.message,
+        timestamp: data.created_at,
+      };
+
+      setMessages(prev => [...prev, newMsg]);
+      setNewMessage('');
 
       toast({
         title: 'Message Sent',
         description: 'Your message has been sent successfully.',
       });
     } catch (error) {
+      console.error('Error sending message:', error);
       toast({
         title: 'Failed to Send',
-        description: 'Failed to send message. Please try again.',
+        description: error?.message || 'Failed to send message. Please try again.',
         variant: 'destructive',
       });
     }
@@ -170,9 +227,9 @@ const ChatInterface = ({ complaint, onBack }: ChatInterfaceProps) => {
                 <div>
                   <h4 className="font-semibold text-sm text-gray-600">Location</h4>
                   <p className="text-sm">
-                    {complaint.location.building}, Room {complaint.location.roomNumber}
-                    {complaint.location.specificLocation && (
-                      <><br />{complaint.location.specificLocation}</>
+                    {complaint.building}, Room {complaint.room_number}
+                    {complaint.specific_location && (
+                      <><br />{complaint.specific_location}</>
                     )}
                   </p>
                 </div>
@@ -193,12 +250,12 @@ const ChatInterface = ({ complaint, onBack }: ChatInterfaceProps) => {
                 </div>
                 <div>
                   <h4 className="font-semibold text-sm text-gray-600">Submitted</h4>
-                  <p className="text-sm">{new Date(complaint.createdAt).toLocaleString()}</p>
+                  <p className="text-sm">{new Date(complaint.created_at).toLocaleString()}</p>
                 </div>
-                {complaint.assignedToName && (
+                {complaint.assigned_to_name && (
                   <div>
                     <h4 className="font-semibold text-sm text-gray-600">Assigned To</h4>
-                    <p className="text-sm">{complaint.assignedToName}</p>
+                    <p className="text-sm">{complaint.assigned_to_name}</p>
                   </div>
                 )}
               </CardContent>

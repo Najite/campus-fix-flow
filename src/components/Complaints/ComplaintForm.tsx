@@ -8,9 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Upload, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/utils/database';
-import { emailService } from '@/utils/emailService';
-import { Complaint } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface ComplaintFormProps {
@@ -78,58 +76,39 @@ const ComplaintForm = ({ onSubmit, onCancel }: ComplaintFormProps) => {
     setIsSubmitting(true);
 
     try {
-      const complaintId = `complaint-${Date.now()}`;
-      const newComplaint: Complaint = {
-        id: complaintId,
-        studentId: user.id,
-        studentName: profile.name,
+      const complaintData = {
+        student_id: profile.id, // Use profile.id instead of user.id
         title: formData.title,
         description: formData.description,
-        category: formData.category as any,
-        priority: formData.priority as any,
-        status: 'submitted',
-        location: {
-          building: formData.building,
-          roomNumber: formData.roomNumber,
-          specificLocation: formData.specificLocation,
-        },
+        category: formData.category,
+        priority: formData.priority,
+        building: formData.building,
+        room_number: formData.roomNumber,
+        specific_location: formData.specificLocation || null,
         images,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        notes: [],
       };
 
-      db.complaints.create(newComplaint);
+      const { data, error } = await supabase
+        .from('complaints')
+        .insert(complaintData)
+        .select()
+        .single();
 
-      // Send confirmation email to student
-      await emailService.sendComplaintSubmissionEmail(
-        user.email || '',
-        profile.name,
-        complaintId,
-        formData.title
-      );
-
-      // Send notification email to admin
-      const adminUsers = db.users.getAll().filter(user => user.role === 'admin');
-      for (const admin of adminUsers) {
-        await emailService.sendAdminNotificationEmail(
-          admin.email,
-          admin.name,
-          complaintId,
-          formData.title
-        );
+      if (error) {
+        throw error;
       }
 
       toast({
         title: 'Complaint Submitted',
-        description: 'Your maintenance complaint has been submitted successfully. You will receive email updates.',
+        description: `Your maintenance complaint has been submitted successfully. Complaint ID: ${data.id}`,
       });
 
       onSubmit();
     } catch (error) {
+      console.error('Error submitting complaint:', error);
       toast({
         title: 'Submission Failed',
-        description: 'Failed to submit complaint. Please try again.',
+        description: error?.message || 'Failed to submit complaint. Please try again.',
         variant: 'destructive',
       });
     } finally {

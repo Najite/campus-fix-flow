@@ -7,11 +7,29 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { MessageSquare, CheckCircle, Clock, AlertTriangle, Wrench, Calendar } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/utils/database';
-import { Complaint } from '@/types';
-import { emailService } from '@/utils/emailService';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import ChatInterface from '../Chat/ChatInterface';
+
+interface Complaint {
+  id: string;
+  student_id: string;
+  title: string;
+  description: string;
+  category: string;
+  priority: string;
+  status: string;
+  building: string;
+  room_number: string;
+  specific_location?: string;
+  images?: string[];
+  assigned_to?: string;
+  created_at: string;
+  updated_at: string;
+  resolved_at?: string;
+  student_name?: string;
+  assigned_to_name?: string;
+}
 
 const MaintenanceDashboard = () => {
   const [assignedComplaints, setAssignedComplaints] = useState<Complaint[]>([]);
@@ -21,53 +39,91 @@ const MaintenanceDashboard = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (user) {
+    if (profile) {
       loadAssignedComplaints();
     }
-  }, [user]);
+  }, [profile]);
 
   const loadAssignedComplaints = () => {
-    if (user) {
-      const complaints = db.complaints.getByAssignedTo(user.id);
-      setAssignedComplaints(complaints);
+    if (profile) {
+      loadComplaintsFromDB();
+    }
+  };
+
+  const loadComplaintsFromDB = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('complaints')
+        .select(`
+          *,
+          student:profiles!complaints_student_id_fkey(name),
+          assigned_user:profiles!complaints_assigned_to_fkey(name)
+        `)
+        .eq('assigned_to', profile.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading complaints:', error);
+        return;
+      }
+
+      const transformedComplaints = data.map(complaint => ({
+        ...complaint,
+        student_name: complaint.student?.name || 'Unknown Student',
+        assigned_to_name: complaint.assigned_user?.name || null
+      }));
+
+      setAssignedComplaints(transformedComplaints);
+    } catch (error) {
+      console.error('Error loading complaints:', error);
     }
   };
 
   const handleStatusUpdate = async (complaintId: string, newStatus: string) => {
-    const updatedComplaint = db.complaints.update(complaintId, {
-      status: newStatus as any,
-      ...(newStatus === 'resolved' ? { resolvedAt: new Date().toISOString() } : {}),
-    });
+    try {
+      const updateData = {
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+        ...(newStatus === 'resolved' ? { resolved_at: new Date().toISOString() } : {})
+      };
 
-    if (updatedComplaint) {
+      const { error } = await supabase
+        .from('complaints')
+        .update(updateData)
+        .eq('id', complaintId);
+
+      if (error) throw error;
+
       // Add work note if provided
       const note = workNotes[complaintId];
       if (note && note.trim()) {
-        const existingComplaint = db.complaints.getById(complaintId);
-        if (existingComplaint) {
-          const updatedNotes = [...existingComplaint.notes, `${profile?.name}: ${note.trim()}`];
-          db.complaints.update(complaintId, { notes: updatedNotes });
+        const { error: noteError } = await supabase
+          .from('complaint_notes')
+          .insert({
+            complaint_id: complaintId,
+            user_id: profile.id,
+            note: note.trim()
+          });
+
+        if (noteError) {
+          console.error('Error adding note:', noteError);
+        } else {
+          setWorkNotes(prev => ({ ...prev, [complaintId]: '' }));
         }
-        setWorkNotes(prev => ({ ...prev, [complaintId]: '' }));
       }
 
       loadAssignedComplaints();
-      
-      // Send email notification to student
-      const student = db.users.getById(updatedComplaint.studentId);
-      if (student) {
-        await emailService.sendStatusUpdateEmail(
-          student.email,
-          student.name,
-          complaintId,
-          updatedComplaint.title,
-          newStatus
-        );
-      }
 
       toast({
         title: 'Status Updated',
         description: `Complaint status updated to ${newStatus}`,
+      });
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast({
+        title: 'Update Failed',
+        description: error?.message || 'Failed to update status. Please try again.',
+        variant: 'destructive',
       });
     }
   };
@@ -76,16 +132,30 @@ const MaintenanceDashboard = () => {
     const note = workNotes[complaintId];
     if (!note || !note.trim()) return;
 
-    const existingComplaint = db.complaints.getById(complaintId);
-    if (existingComplaint) {
-      const updatedNotes = [...existingComplaint.notes, `${profile?.name}: ${note.trim()}`];
-      db.complaints.update(complaintId, { notes: updatedNotes });
+    try {
+      const { error } = await supabase
+        .from('complaint_notes')
+        .insert({
+          complaint_id: complaintId,
+          user_id: profile.id,
+          note: note.trim()
+        });
+
+      if (error) throw error;
+
       setWorkNotes(prev => ({ ...prev, [complaintId]: '' }));
       loadAssignedComplaints();
       
       toast({
         title: 'Note Added',
         description: 'Work note has been added to the complaint.',
+      });
+    } catch (error) {
+      console.error('Error adding note:', error);
+      toast({
+        title: 'Failed to Add Note',
+        description: error?.message || 'Failed to add note. Please try again.',
+        variant: 'destructive',
       });
     }
   };
@@ -233,30 +303,19 @@ const MaintenanceDashboard = () => {
                               <p className="text-gray-600 mb-3">{complaint.description}</p>
                               <div className="grid grid-cols-2 gap-4 text-sm text-gray-500 mb-4">
                                 <div>
-                                  <p><strong>Student:</strong> {complaint.studentName}</p>
-                                  <p><strong>Location:</strong> {complaint.location.building}</p>
+                                  <p><strong>Student:</strong> {complaint.student_name}</p>
+                                  <p><strong>Location:</strong> {complaint.building}</p>
                                 </div>
                                 <div>
-                                  <p><strong>Room:</strong> {complaint.location.roomNumber}</p>
+                                  <p><strong>Room:</strong> {complaint.room_number}</p>
                                   <p><strong>Category:</strong> {complaint.category}</p>
                                 </div>
                               </div>
                               
-                              {complaint.location.specificLocation && (
+                              {complaint.specific_location && (
                                 <p className="text-sm text-gray-600 mb-3">
-                                  <strong>Specific Location:</strong> {complaint.location.specificLocation}
+                                  <strong>Specific Location:</strong> {complaint.specific_location}
                                 </p>
-                              )}
-                              
-                              {complaint.notes.length > 0 && (
-                                <div className="mb-4">
-                                  <h4 className="font-medium text-sm text-gray-700 mb-2">Work Notes:</h4>
-                                  <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                                    {complaint.notes.map((note, index) => (
-                                      <p key={index} className="text-sm text-gray-600">• {note}</p>
-                                    ))}
-                                  </div>
-                                </div>
                               )}
                             </div>
                           </div>
@@ -355,16 +414,10 @@ const MaintenanceDashboard = () => {
                               </div>
                               <p className="text-gray-600 text-sm mb-2">{complaint.description}</p>
                               <div className="text-xs text-gray-500 space-y-1">
-                                <p><strong>Student:</strong> {complaint.studentName}</p>
-                                <p><strong>Location:</strong> {complaint.location.building}, Room {complaint.location.roomNumber}</p>
-                                <p><strong>Completed:</strong> {complaint.resolvedAt && new Date(complaint.resolvedAt).toLocaleDateString()}</p>
+                                <p><strong>Student:</strong> {complaint.student_name}</p>
+                                <p><strong>Location:</strong> {complaint.building}, Room {complaint.room_number}</p>
+                                <p><strong>Completed:</strong> {complaint.resolved_at && new Date(complaint.resolved_at).toLocaleDateString()}</p>
                               </div>
-                              {complaint.notes.length > 0 && (
-                                <div className="mt-2">
-                                  <p className="text-xs text-gray-600"><strong>Final Notes:</strong></p>
-                                  <p className="text-xs text-gray-500">{complaint.notes[complaint.notes.length - 1]}</p>
-                                </div>
-                              )}
                             </div>
                           </div>
                         </div>
