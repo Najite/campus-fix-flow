@@ -438,7 +438,7 @@ const AdminDashboard = () => {
                                 </SelectTrigger>
                                 <SelectContent>
                                   {maintenanceUsers.map((user) => (
-                                    <SelectItem key={user.user_id} value={user.user_id}>
+                                    <SelectItem key={user.id} value={user.id}>
                                       {user.name}
                                     </SelectItem>
                                   ))}
