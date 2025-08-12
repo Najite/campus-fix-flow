@@ -77,6 +77,28 @@ serve(async (req) => {
 
         if (authData.user) {
           createdUsers[userData.role] = authData.user.id;
+          
+          // Explicitly create profile record to ensure consistency
+          const { error: profileError } = await supabaseAdmin
+            .from('profiles')
+            .insert({
+              user_id: authData.user.id,
+              name: userData.name,
+              role: userData.role,
+              username: userData.username,
+              email: userData.email
+            });
+
+          if (profileError) {
+            console.error(`Error creating profile for ${userData.email}:`, profileError);
+            userResults.push({
+              email: userData.email,
+              success: false,
+              error: `Profile creation failed: ${profileError.message}`
+            });
+            continue;
+          }
+
           userResults.push({
             email: userData.email,
             success: true,
