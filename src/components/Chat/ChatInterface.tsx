@@ -4,9 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Send, User, Building2, Wrench } from 'lucide-react';
+import { ArrowLeft, Send, User, Building2, Wrench, Upload, X, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface Complaint {
   id: string;
@@ -47,6 +48,9 @@ const ChatInterface = ({ complaint, onBack }: ChatInterfaceProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { user, profile } = useAuth();
   const { toast } = useToast();
@@ -99,14 +103,109 @@ const ChatInterface = ({ complaint, onBack }: ChatInterfaceProps) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const fileArray = Array.from(files);
+      
+      // Validate file types and sizes
+      const validFiles = fileArray.filter(file => {
+        const isValidType = file.type.startsWith('image/');
+        const isValidSize = file.size <= 5 * 1024 * 1024; // 5MB limit
+        
+        if (!isValidType) {
+          toast({
+            title: 'Invalid File Type',
+            description: `${file.name} is not a valid image file.`,
+            variant: 'destructive',
+          });
+          return false;
+        }
+        
+        if (!isValidSize) {
+          toast({
+            title: 'File Too Large',
+            description: `${file.name} is larger than 5MB.`,
+            variant: 'destructive',
+          });
+          return false;
+        }
+        
+        return true;
+      });
+      
+      if (validFiles.length > 0) {
+        setSelectedImages(prev => [...prev, ...validFiles]);
+        
+        // Create preview URLs
+        const newUrls = validFiles.map(file => URL.createObjectURL(file));
+        setImageUrls(prev => [...prev, ...newUrls]);
+      }
+    }
+  };
+
+  const removeImage = (index: number) => {
+    // Revoke the object URL to free memory
+    URL.revokeObjectURL(imageUrls[index]);
+    
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+    setImageUrls(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadImages = async (): Promise<string[]> => {
+    if (selectedImages.length === 0) return [];
+    
+    setIsUploadingImages(true);
+    const uploadedUrls: string[] = [];
+    
+    try {
+      for (const image of selectedImages) {
+        const fileExt = image.name.split('.').pop();
+        const fileName = `chat-${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `chat/${fileName}`;
+        
+        const { data, error } = await supabase.storage
+          .from('complaint-images')
+          .upload(filePath, image);
+        
+        if (error) {
+          console.error('Error uploading image:', error);
+          continue;
+        }
+        
+        // Get the public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('complaint-images')
+          .getPublicUrl(filePath);
+        
+        uploadedUrls.push(publicUrl);
+      }
+    } catch (error) {
+      console.error('Error during image upload:', error);
+    } finally {
+      setIsUploadingImages(false);
+    }
+    
+    return uploadedUrls;
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !user || !profile) return;
+    if ((!newMessage.trim() && selectedImages.length === 0) || !user || !profile) return;
+
+    // Upload images first if any
+    const uploadedImageUrls = await uploadImages();
+    
+    let messageText = newMessage.trim();
+    if (uploadedImageUrls.length > 0) {
+      const imageLinks = uploadedImageUrls.map(url => `[Image](${url})`).join(' ');
+      messageText = messageText ? `${messageText}\n\n${imageLinks}` : imageLinks;
+    }
 
     const messageData = {
       complaint_id: complaint.id,
       user_id: profile.id,
-      message: newMessage.trim(),
+      message: messageText,
     };
 
     try {
@@ -135,6 +234,8 @@ const ChatInterface = ({ complaint, onBack }: ChatInterfaceProps) => {
 
       setMessages(prev => [...prev, newMsg]);
       setNewMessage('');
+      setSelectedImages([]);
+      setImageUrls([]);
 
       toast({
         title: 'Message Sent',
@@ -185,6 +286,40 @@ const ChatInterface = ({ complaint, onBack }: ChatInterfaceProps) => {
       case 'closed': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const renderMessageContent = (message: string) => {
+    // Check if message contains image links
+    const imageRegex = /\[Image\]\((https?:\/\/[^\)]+)\)/g;
+    const parts = message.split(imageRegex);
+    
+    return (
+      <div className="space-y-2">
+        {parts.map((part, index) => {
+          if (part.match(/^https?:\/\//)) {
+            // This is an image URL
+            return (
+              <div key={index} className="mt-2">
+                <img
+                  src={part}
+                  alt="Shared image"
+                  className="max-w-xs rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => window.open(part, '_blank')}
+                />
+              </div>
+            );
+          } else if (part.trim()) {
+            // This is regular text
+            return (
+              <p key={index} className="text-sm whitespace-pre-wrap">
+                {part}
+              </p>
+            );
+          }
+          return null;
+        })}
+      </div>
+    );
   };
 
   return (
@@ -318,7 +453,7 @@ const ChatInterface = ({ complaint, onBack }: ChatInterfaceProps) => {
                               {message.userName}
                             </span>
                           </div>
-                          <p className="text-sm">{message.message}</p>
+                          <div>{renderMessageContent(message.message)}</div>
                           <p className="text-xs opacity-70 mt-1">
                             {new Date(message.timestamp).toLocaleTimeString()}
                           </p>
@@ -342,17 +477,110 @@ const ChatInterface = ({ complaint, onBack }: ChatInterfaceProps) => {
                   <div ref={messagesEndRef} />
                 </div>
 
+                {/* Image Preview */}
+                {imageUrls.length > 0 && (
+                  <div className="mb-4 p-3 border rounded-lg bg-gray-50">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">Selected Images ({selectedImages.length})</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {imageUrls.map((url, index) => (
+                        <div key={index} className="relative group">
+                          <div className="aspect-square rounded-lg overflow-hidden bg-gray-100 border">
+                            <img
+                              src={url}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Message Input */}
-                <form onSubmit={handleSendMessage} className="flex space-x-2">
-                  <Input
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Type your message..."
-                    className="flex-1"
-                  />
-                  <Button type="submit" disabled={!newMessage.trim()}>
-                    <Send className="h-4 w-4" />
-                  </Button>
+                <form onSubmit={handleSendMessage} className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <label htmlFor="image-upload" className="cursor-pointer">
+                      <div className="p-2 rounded-lg border hover:bg-gray-50 transition-colors">
+                        <Upload className="h-4 w-4 text-gray-500" />
+                      </div>
+                      <input
+                        id="image-upload"
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleImageUpload}
+                      />
+                    </label>
+                    <Input
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      placeholder="Type your message..."
+                      className="flex-1"
+                    />
+                    <Button 
+                      type="submit" 
+                      disabled={(!newMessage.trim() && selectedImages.length === 0) || isUploadingImages}
+                    >
+                      {isUploadingImages ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+                <form onSubmit={handleSendMessage} className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <label htmlFor="image-upload" className="cursor-pointer">
+                      <div className="p-2 rounded-lg border hover:bg-gray-50 transition-colors">
+                        <Upload className="h-4 w-4 text-gray-500" />
+                      </div>
+                      <input
+                        id="image-upload"
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleImageUpload}
+                      />
+                    </label>
+                    <Input
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      placeholder="Type your message..."
+                      className="flex-1"
+                    />
+                    <Button 
+                      type="submit" 
+                      disabled={(!newMessage.trim() && selectedImages.length === 0) || isUploadingImages}
+                    >
+                      {isUploadingImages ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                 </form>
               </CardContent>
             </Card>

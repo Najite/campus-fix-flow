@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { MessageSquare, CheckCircle, Clock, AlertTriangle, Wrench, Calendar } from 'lucide-react';
+import { MessageSquare, CheckCircle, Clock, AlertTriangle, Wrench, Calendar, Upload, X, Camera } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -35,6 +35,9 @@ const MaintenanceDashboard = () => {
   const [assignedComplaints, setAssignedComplaints] = useState<Complaint[]>([]);
   const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(null);
   const [workNotes, setWorkNotes] = useState<Record<string, string>>({});
+  const [completionImages, setCompletionImages] = useState<Record<string, File[]>>({});
+  const [completionImageUrls, setCompletionImageUrls] = useState<Record<string, string[]>>({});
+  const [isUploadingImages, setIsUploadingImages] = useState<Record<string, boolean>>({});
   const { user, profile } = useAuth();
   const { toast } = useToast();
 
@@ -79,12 +82,123 @@ const MaintenanceDashboard = () => {
     }
   };
 
+  const handleCompletionImageUpload = (complaintId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const fileArray = Array.from(files);
+      
+      // Validate file types and sizes
+      const validFiles = fileArray.filter(file => {
+        const isValidType = file.type.startsWith('image/');
+        const isValidSize = file.size <= 5 * 1024 * 1024; // 5MB limit
+        
+        if (!isValidType) {
+          toast({
+            title: 'Invalid File Type',
+            description: `${file.name} is not a valid image file.`,
+            variant: 'destructive',
+          });
+          return false;
+        }
+        
+        if (!isValidSize) {
+          toast({
+            title: 'File Too Large',
+            description: `${file.name} is larger than 5MB.`,
+            variant: 'destructive',
+          });
+          return false;
+        }
+        
+        return true;
+      });
+      
+      if (validFiles.length > 0) {
+        setCompletionImages(prev => ({
+          ...prev,
+          [complaintId]: [...(prev[complaintId] || []), ...validFiles]
+        }));
+        
+        // Create preview URLs
+        const newUrls = validFiles.map(file => URL.createObjectURL(file));
+        setCompletionImageUrls(prev => ({
+          ...prev,
+          [complaintId]: [...(prev[complaintId] || []), ...newUrls]
+        }));
+      }
+    }
+  };
+
+  const removeCompletionImage = (complaintId: string, index: number) => {
+    const urls = completionImageUrls[complaintId] || [];
+    if (urls[index]) {
+      URL.revokeObjectURL(urls[index]);
+    }
+    
+    setCompletionImages(prev => ({
+      ...prev,
+      [complaintId]: (prev[complaintId] || []).filter((_, i) => i !== index)
+    }));
+    
+    setCompletionImageUrls(prev => ({
+      ...prev,
+      [complaintId]: (prev[complaintId] || []).filter((_, i) => i !== index)
+    }));
+  };
+
+  const uploadCompletionImages = async (complaintId: string): Promise<string[]> => {
+    const images = completionImages[complaintId] || [];
+    if (images.length === 0) return [];
+    
+    setIsUploadingImages(prev => ({ ...prev, [complaintId]: true }));
+    const uploadedUrls: string[] = [];
+    
+    try {
+      for (const image of images) {
+        const fileExt = image.name.split('.').pop();
+        const fileName = `completion-${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `completion/${fileName}`;
+        
+        const { data, error } = await supabase.storage
+          .from('complaint-images')
+          .upload(filePath, image);
+        
+        if (error) {
+          console.error('Error uploading completion image:', error);
+          continue;
+        }
+        
+        // Get the public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('complaint-images')
+          .getPublicUrl(filePath);
+        
+        uploadedUrls.push(publicUrl);
+      }
+    } catch (error) {
+      console.error('Error during completion image upload:', error);
+    } finally {
+      setIsUploadingImages(prev => ({ ...prev, [complaintId]: false }));
+    }
+    
+    return uploadedUrls;
+  };
+
   const handleStatusUpdate = async (complaintId: string, newStatus: string) => {
     try {
+      // Upload completion images if resolving
+      let completionImageUrls: string[] = [];
+      if (newStatus === 'resolved') {
+        completionImageUrls = await uploadCompletionImages(complaintId);
+      }
+
       const updateData = {
         status: newStatus,
         updated_at: new Date().toISOString(),
-        ...(newStatus === 'resolved' ? { resolved_at: new Date().toISOString() } : {})
+        ...(newStatus === 'resolved' ? { 
+          resolved_at: new Date().toISOString(),
+          completion_images: completionImageUrls
+        } : {})
       };
 
       const { error } = await supabase
@@ -110,6 +224,12 @@ const MaintenanceDashboard = () => {
         } else {
           setWorkNotes(prev => ({ ...prev, [complaintId]: '' }));
         }
+      }
+
+      // Clear completion images after successful update
+      if (newStatus === 'resolved') {
+        setCompletionImages(prev => ({ ...prev, [complaintId]: [] }));
+        setCompletionImageUrls(prev => ({ ...prev, [complaintId]: [] }));
       }
 
       loadAssignedComplaints();
@@ -338,6 +458,64 @@ const MaintenanceDashboard = () => {
                               />
                             </div>
                             
+                            {/* Completion Images Section - Only show when marking as complete */}
+                            {complaint.status === 'in-progress' && (
+                              <div className="space-y-3 p-4 bg-green-50 rounded-lg border border-green-200">
+                                <div className="flex items-center space-x-2">
+                                  <Camera className="h-4 w-4 text-green-600" />
+                                  <Label className="text-sm font-medium text-green-800">
+                                    Add Completion Photos (Optional)
+                                  </Label>
+                                </div>
+                                <p className="text-xs text-green-600">
+                                  Upload photos showing the completed work for verification
+                                </p>
+                                
+                                <div className="border-2 border-dashed border-green-300 rounded-lg p-4">
+                                  <div className="text-center">
+                                    <label htmlFor={`completion-images-${complaint.id}`} className="cursor-pointer">
+                                      <Upload className="mx-auto h-8 w-8 text-green-400 mb-2" />
+                                      <span className="text-sm text-green-700">
+                                        Click to upload completion photos
+                                      </span>
+                                      <input
+                                        id={`completion-images-${complaint.id}`}
+                                        type="file"
+                                        multiple
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => handleCompletionImageUpload(complaint.id, e)}
+                                      />
+                                    </label>
+                                  </div>
+                                </div>
+                                
+                                {/* Image Preview */}
+                                {completionImageUrls[complaint.id] && completionImageUrls[complaint.id].length > 0 && (
+                                  <div className="grid grid-cols-3 gap-2">
+                                    {completionImageUrls[complaint.id].map((url, index) => (
+                                      <div key={index} className="relative group">
+                                        <div className="aspect-square rounded-lg overflow-hidden bg-gray-100 border">
+                                          <img
+                                            src={url}
+                                            alt={`Completion ${index + 1}`}
+                                            className="w-full h-full object-cover"
+                                          />
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => removeCompletionImage(complaint.id, index)}
+                                          className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            
                             <div className="flex flex-wrap gap-2">
                               <Button
                                 variant="outline"
@@ -372,9 +550,19 @@ const MaintenanceDashboard = () => {
                                   size="sm"
                                   onClick={() => handleStatusUpdate(complaint.id, 'resolved')}
                                   className="bg-green-600 hover:bg-green-700"
+                                  disabled={isUploadingImages[complaint.id]}
                                 >
-                                  <CheckCircle className="h-4 w-4 mr-2" />
-                                  Mark Complete
+                                  {isUploadingImages[complaint.id] ? (
+                                    <>
+                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                      Uploading...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle className="h-4 w-4 mr-2" />
+                                      Mark Complete
+                                    </>
+                                  )}
                                 </Button>
                               )}
                             </div>
