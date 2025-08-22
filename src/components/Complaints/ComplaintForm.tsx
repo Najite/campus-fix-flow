@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Upload, X } from 'lucide-react';
+import { ArrowLeft, Upload, X, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -25,8 +25,10 @@ const ComplaintForm = ({ onSubmit, onCancel }: ComplaintFormProps) => {
     roomNumber: '',
     specificLocation: '',
   });
-  const [images, setImages] = useState<string[]>([]);
+  const [images, setImages] = useState<File[]>([]);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
   const { toast } = useToast();
   const { user, profile } = useAuth();
 
@@ -56,16 +58,97 @@ const ComplaintForm = ({ onSubmit, onCancel }: ComplaintFormProps) => {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
-      // For demo purposes, we'll just add placeholder image URLs
-      const newImages = Array.from(files).map((file, index) => 
-        `placeholder-image-${Date.now()}-${index}.jpg`
-      );
-      setImages(prev => [...prev, ...newImages]);
+      const fileArray = Array.from(files);
+      
+      // Validate file types and sizes
+      const validFiles = fileArray.filter(file => {
+        const isValidType = file.type.startsWith('image/');
+        const isValidSize = file.size <= 5 * 1024 * 1024; // 5MB limit
+        
+        if (!isValidType) {
+          toast({
+            title: 'Invalid File Type',
+            description: `${file.name} is not a valid image file.`,
+            variant: 'destructive',
+          });
+          return false;
+        }
+        
+        if (!isValidSize) {
+          toast({
+            title: 'File Too Large',
+            description: `${file.name} is larger than 5MB.`,
+            variant: 'destructive',
+          });
+          return false;
+        }
+        
+        return true;
+      });
+      
+      if (validFiles.length > 0) {
+        setImages(prev => [...prev, ...validFiles]);
+        
+        // Create preview URLs
+        const newUrls = validFiles.map(file => URL.createObjectURL(file));
+        setImageUrls(prev => [...prev, ...newUrls]);
+      }
     }
   };
 
   const removeImage = (index: number) => {
+    // Revoke the object URL to free memory
+    URL.revokeObjectURL(imageUrls[index]);
+    
     setImages(prev => prev.filter((_, i) => i !== index));
+    setImageUrls(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadImages = async (): Promise<string[]> => {
+    if (images.length === 0) return [];
+    
+    setIsUploadingImages(true);
+    const uploadedUrls: string[] = [];
+    
+    try {
+      for (const image of images) {
+        const fileExt = image.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `complaint-images/${fileName}`;
+        
+        const { data, error } = await supabase.storage
+          .from('complaint-images')
+          .upload(filePath, image);
+        
+        if (error) {
+          console.error('Error uploading image:', error);
+          toast({
+            title: 'Upload Failed',
+            description: `Failed to upload ${image.name}`,
+            variant: 'destructive',
+          });
+          continue;
+        }
+        
+        // Get the public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('complaint-images')
+          .getPublicUrl(filePath);
+        
+        uploadedUrls.push(publicUrl);
+      }
+    } catch (error) {
+      console.error('Error during image upload:', error);
+      toast({
+        title: 'Upload Error',
+        description: 'An error occurred while uploading images',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploadingImages(false);
+    }
+    
+    return uploadedUrls;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -75,6 +158,9 @@ const ComplaintForm = ({ onSubmit, onCancel }: ComplaintFormProps) => {
     setIsSubmitting(true);
 
     try {
+      // Upload images first
+      const uploadedImageUrls = await uploadImages();
+      
       const complaintData = {
         student_id: profile.id, // Use profile.id instead of user.id
         title: formData.title,
@@ -84,7 +170,7 @@ const ComplaintForm = ({ onSubmit, onCancel }: ComplaintFormProps) => {
         building: formData.building,
         room_number: formData.roomNumber,
         specific_location: formData.specificLocation || null,
-        images,
+        images: uploadedImageUrls,
       };
 
       const { data, error } = await supabase
@@ -242,7 +328,7 @@ const ComplaintForm = ({ onSubmit, onCancel }: ComplaintFormProps) => {
                     <div className="mt-4">
                       <label htmlFor="images" className="cursor-pointer">
                         <span className="mt-2 block text-sm font-medium text-gray-900">
-                          Upload images to help describe the issue
+                          Upload images to help describe the issue (Max 5MB each)
                         </span>
                         <input
                           id="images"
@@ -253,23 +339,35 @@ const ComplaintForm = ({ onSubmit, onCancel }: ComplaintFormProps) => {
                           onChange={handleImageUpload}
                         />
                       </label>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Supported formats: JPG, PNG, GIF, WebP
+                      </p>
                     </div>
                   </div>
                 </div>
-                {images.length > 0 && (
+                {imageUrls.length > 0 && (
                   <div className="mt-4">
-                    <p className="text-sm text-gray-600 mb-2">Uploaded images:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {images.map((image, index) => (
-                        <div key={index} className="relative bg-gray-100 rounded-lg p-2 flex items-center">
-                          <span className="text-sm text-gray-600 mr-2">{image}</span>
+                    <p className="text-sm text-gray-600 mb-3">Selected images ({images.length}):</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {imageUrls.map((url, index) => (
+                        <div key={index} className="relative group">
+                          <div className="aspect-square rounded-lg overflow-hidden bg-gray-100 border">
+                            <img
+                              src={url}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
                           <button
                             type="button"
                             onClick={() => removeImage(index)}
-                            className="text-red-500 hover:text-red-700"
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
                           >
-                            <X className="h-4 w-4" />
+                            <X className="h-3 w-3" />
                           </button>
+                          <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 rounded-b-lg truncate">
+                            {images[index]?.name}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -283,10 +381,11 @@ const ComplaintForm = ({ onSubmit, onCancel }: ComplaintFormProps) => {
                 </Button>
                 <Button 
                   type="submit" 
-                  disabled={!isFormValid || isSubmitting}
+                  disabled={!isFormValid || isSubmitting || isUploadingImages}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
-                  {isSubmitting ? 'Submitting...' : 'Submit Complaint'}
+                  {isUploadingImages ? 'Uploading Images...' : 
+                   isSubmitting ? 'Submitting...' : 'Submit Complaint'}
                 </Button>
               </div>
             </form>

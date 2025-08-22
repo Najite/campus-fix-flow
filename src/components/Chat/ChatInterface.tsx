@@ -248,6 +248,23 @@ const ChatInterface = ({ complaint, onBack }: ChatInterfaceProps) => {
                     {complaint.priority}
                   </Badge>
                 </div>
+                {complaint.images && complaint.images.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold text-sm text-gray-600 mb-2">Images</h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      {complaint.images.map((imageUrl, index) => (
+                        <div key={index} className="aspect-square rounded-lg overflow-hidden bg-gray-100 border">
+                          <img
+                            src={imageUrl}
+                            alt={`Complaint image ${index + 1}`}
+                            className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => window.open(imageUrl, '_blank')}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <h4 className="font-semibold text-sm text-gray-600">Submitted</h4>
                   <p className="text-sm">{new Date(complaint.created_at).toLocaleString()}</p>
