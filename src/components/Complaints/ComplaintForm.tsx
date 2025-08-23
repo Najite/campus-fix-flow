@@ -111,23 +111,6 @@ const ComplaintForm = ({ onSubmit, onCancel }: ComplaintFormProps) => {
     const uploadedUrls: string[] = [];
     
     try {
-      // Ensure the storage bucket exists and is properly configured
-      const { data: buckets } = await supabase.storage.listBuckets();
-      const complaintBucket = buckets?.find(bucket => bucket.name === 'complaint-images');
-      
-      if (!complaintBucket) {
-        // Create the bucket if it doesn't exist
-        const { error: bucketError } = await supabase.storage.createBucket('complaint-images', {
-          public: true,
-          allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
-          fileSizeLimit: 5242880 // 5MB
-        });
-        
-        if (bucketError) {
-          console.error('Error creating bucket:', bucketError);
-        }
-      }
-      
       for (const image of images) {
         const fileExt = image.name.split('.').pop();
         const fileName = `complaint-${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;

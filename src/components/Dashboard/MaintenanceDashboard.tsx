@@ -165,6 +165,11 @@ const MaintenanceDashboard = () => {
         
         if (error) {
           console.error('Error uploading completion image:', error);
+          toast({
+            title: 'Upload Failed',
+            description: `Failed to upload ${image.name}`,
+            variant: 'destructive',
+          });
           continue;
         }
         
@@ -175,8 +180,20 @@ const MaintenanceDashboard = () => {
         
         uploadedUrls.push(publicUrl);
       }
+      
+      if (uploadedUrls.length > 0) {
+        toast({
+          title: 'Completion Images Uploaded',
+          description: `Successfully uploaded ${uploadedUrls.length} completion image(s)`,
+        });
+      }
     } catch (error) {
       console.error('Error during completion image upload:', error);
+      toast({
+        title: 'Upload Error',
+        description: 'An error occurred while uploading completion images',
+        variant: 'destructive',
+      });
     } finally {
       setIsUploadingImages(prev => ({ ...prev, [complaintId]: false }));
     }
