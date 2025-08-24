@@ -9,7 +9,7 @@ import { MessageSquare, CheckCircle, Clock, AlertTriangle, Wrench, Calendar, Upl
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import ChatInterface from '../Chat/ChatInterface';
+import { ChatInterface } from '../Chat/ChatInterface';
 
 interface Complaint {
   id: string;
