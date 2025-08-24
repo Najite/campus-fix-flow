@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import ComplaintForm from '../Complaints/ComplaintForm';
 import ComplaintList from '../Complaints/ComplaintList';
-import ChatInterface from '../Chat/ChatInterface';
+import { ChatInterface } from '../Chat/ChatInterface';
 
 interface Complaint {
   id: string;
