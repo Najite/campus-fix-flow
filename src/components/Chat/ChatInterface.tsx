@@ -15,7 +15,11 @@ interface Complaint {
   status: string;
   priority: string;
   category: string;
-  location: string;
+  location: {
+    building: string;
+    roomNumber: string;
+    specificLocation?: string;
+  };
   created_at: string;
   student_id: string;
   assigned_to?: string;
@@ -189,7 +193,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ complaint, onBack 
               {complaint.priority.toUpperCase()}
             </span>
             <span className="text-sm text-gray-500">
-              {complaint.location} • {complaint.category}
+              {complaint.location.building} {complaint.location.roomNumber} • {complaint.category}
             </span>
           </div>
         </div>
