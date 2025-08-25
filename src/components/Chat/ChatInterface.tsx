@@ -25,7 +25,7 @@ interface Complaint {
 interface Message {
   id: string;
   complaint_id: string;
-  sender_id: string;
+  user_id: string;
   message: string;
   created_at: string;
   sender_role: string;
@@ -64,7 +64,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ complaint, onBack 
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'messages',
+          table: 'chat_messages',
           filter: `complaint_id=eq.${complaint.id}`,
         },
         (payload) => {
@@ -82,10 +82,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ complaint, onBack 
   const fetchMessages = async () => {
     try {
       const { data, error } = await supabase
-        .from('messages')
+        .from('chat_messages')
         .select(`
           *,
-          profiles!messages_sender_id_fkey (
+          profiles!chat_messages_user_id_fkey (
             name,
             role
           )
@@ -116,10 +116,10 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ complaint, onBack 
     setSending(true);
     try {
       const { error } = await supabase
-        .from('messages')
+        .from('chat_messages')
         .insert({
           complaint_id: complaint.id,
-          sender_id: user.id,
+          user_id: user.id,
           message: newMessage.trim()
         });
 
@@ -232,7 +232,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ complaint, onBack 
             <div
               key={message.id}
               className={`flex gap-3 ${
-                message.sender_id === user?.id ? 'flex-row-reverse' : 'flex-row'
+                message.user_id === user?.id ? 'flex-row-reverse' : 'flex-row'
               }`}
             >
               <Avatar className="h-8 w-8 flex-shrink-0">
@@ -247,7 +247,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ complaint, onBack 
                 </AvatarFallback>
               </Avatar>
               <div className={`flex flex-col max-w-xs lg:max-w-md ${
-                message.sender_id === user?.id ? 'items-end' : 'items-start'
+                message.user_id === user?.id ? 'items-end' : 'items-start'
               }`}>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs font-medium text-gray-700">
@@ -258,7 +258,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ complaint, onBack 
                   </span>
                 </div>
                 <div className={`rounded-lg px-3 py-2 text-sm ${
-                  message.sender_id === user?.id
+                  message.user_id === user?.id
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-900'
                 }`}>
