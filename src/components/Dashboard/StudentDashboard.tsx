@@ -122,9 +122,19 @@ const StudentDashboard = () => {
   if (selectedComplaintId) {
     const selectedComplaint = complaints.find(c => c.id === selectedComplaintId);
     if (selectedComplaint) {
+      // Transform the complaint to match ChatInterface expectations
+      const transformedComplaint = {
+        ...selectedComplaint,
+        location: {
+          building: selectedComplaint.building,
+          roomNumber: selectedComplaint.room_number,
+          specificLocation: selectedComplaint.specific_location
+        }
+      };
+      
       return (
         <ChatInterface
-          complaint={selectedComplaint}
+          complaint={transformedComplaint}
           onBack={() => setSelectedComplaintId(null)}
         />
       );
