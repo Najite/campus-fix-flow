@@ -328,9 +328,33 @@ const MaintenanceDashboard = () => {
   if (selectedComplaintId) {
     const selectedComplaint = assignedComplaints.find(c => c.id === selectedComplaintId);
     if (selectedComplaint) {
+      // Transform to match ChatInterface expected format
+      const transformedComplaint = {
+        id: selectedComplaint.id,
+        studentId: selectedComplaint.student_id,
+        studentName: selectedComplaint.student_name || 'Unknown',
+        title: selectedComplaint.title,
+        description: selectedComplaint.description,
+        category: selectedComplaint.category as 'plumbing' | 'electrical' | 'hvac' | 'structural' | 'cleaning' | 'other',
+        priority: selectedComplaint.priority as 'low' | 'medium' | 'high' | 'urgent',
+        status: selectedComplaint.status as 'submitted' | 'assigned' | 'in-progress' | 'resolved' | 'closed',
+        location: {
+          building: selectedComplaint.building,
+          roomNumber: selectedComplaint.room_number,
+          specificLocation: selectedComplaint.specific_location || ''
+        },
+        images: selectedComplaint.images || [],
+        assignedTo: selectedComplaint.assigned_to,
+        assignedToName: selectedComplaint.assigned_to_name,
+        createdAt: selectedComplaint.created_at,
+        updatedAt: selectedComplaint.updated_at,
+        resolvedAt: selectedComplaint.resolved_at,
+        notes: [] // Will be loaded from chat messages
+      };
+
       return (
         <ChatInterface
-          complaint={selectedComplaint}
+          complaint={transformedComplaint}
           onBack={() => setSelectedComplaintId(null)}
         />
       );
