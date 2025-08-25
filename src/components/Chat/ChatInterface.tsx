@@ -47,7 +47,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ complaint, onBack 
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -115,7 +115,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ complaint, onBack 
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !user || sending) return;
+    if (!newMessage.trim() || !user || !profile || sending) return;
 
     setSending(true);
     try {
@@ -123,7 +123,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ complaint, onBack 
         .from('chat_messages')
         .insert({
           complaint_id: complaint.id,
-          user_id: user.id,
+          user_id: profile.id,
           message: newMessage.trim()
         });
 
@@ -236,7 +236,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ complaint, onBack 
             <div
               key={message.id}
               className={`flex gap-3 ${
-                message.user_id === user?.id ? 'flex-row-reverse' : 'flex-row'
+                message.user_id === profile?.id ? 'flex-row-reverse' : 'flex-row'
               }`}
             >
               <Avatar className="h-8 w-8 flex-shrink-0">
@@ -251,7 +251,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ complaint, onBack 
                 </AvatarFallback>
               </Avatar>
               <div className={`flex flex-col max-w-xs lg:max-w-md ${
-                message.user_id === user?.id ? 'items-end' : 'items-start'
+                message.user_id === profile?.id ? 'items-end' : 'items-start'
               }`}>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs font-medium text-gray-700">
@@ -262,7 +262,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({ complaint, onBack 
                   </span>
                 </div>
                 <div className={`rounded-lg px-3 py-2 text-sm ${
-                  message.user_id === user?.id
+                  message.user_id === profile?.id
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-900'
                 }`}>
