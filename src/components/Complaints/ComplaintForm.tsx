@@ -111,6 +111,31 @@ const ComplaintForm = ({ onSubmit, onCancel }: ComplaintFormProps) => {
     const uploadedUrls: string[] = [];
     
     try {
+      // First, check if the bucket exists
+      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
+      
+      if (bucketsError) {
+        console.error('Error checking buckets:', bucketsError);
+        toast({
+          title: 'Storage Error',
+          description: 'Unable to access storage. Please contact your administrator.',
+          variant: 'destructive',
+        });
+        return [];
+      }
+      
+      const bucketExists = buckets?.some(bucket => bucket.name === 'complaint-images');
+      
+      if (!bucketExists) {
+        console.error('complaint-images bucket does not exist');
+        toast({
+          title: 'Storage Configuration Error',
+          description: 'Image storage is not properly configured. Please contact your administrator to set up the complaint-images storage bucket.',
+          variant: 'destructive',
+        });
+        return [];
+      }
+      
       for (const image of images) {
         const fileExt = image.name.split('.').pop();
         const fileName = `complaint-${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
@@ -122,6 +147,16 @@ const ComplaintForm = ({ onSubmit, onCancel }: ComplaintFormProps) => {
         
         if (error) {
           console.error('Error uploading image:', error);
+          
+          if (error.message?.includes('Bucket not found')) {
+            toast({
+              title: 'Storage Configuration Error',
+              description: 'Image storage bucket is missing. Please contact your administrator.',
+              variant: 'destructive',
+            });
+            break;
+          }
+          
           toast({
             title: 'Upload Failed',
             description: `Failed to upload ${image.name}`,
@@ -148,7 +183,7 @@ const ComplaintForm = ({ onSubmit, onCancel }: ComplaintFormProps) => {
       console.error('Error during image upload:', error);
       toast({
         title: 'Upload Error',
-        description: 'An error occurred while uploading images',
+        description: 'An error occurred while uploading images. Please try again or contact support.',
         variant: 'destructive',
       });
     } finally {
