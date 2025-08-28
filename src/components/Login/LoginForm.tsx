@@ -164,7 +164,7 @@ const LoginForm = ({ role }: LoginFormProps) => {
           </form>
           
          
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          {/* <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
             <div className="text-sm text-blue-800 mb-2">
               <strong>Demo Credentials:</strong>
             </div>
@@ -194,7 +194,7 @@ const LoginForm = ({ role }: LoginFormProps) => {
                 {isPopulating ? 'Populating...' : 'Populate Sample Data'}
               </Button>
             </div>
-          </div>
+          </div> */}
          
           <div className="mt-4 text-center">
             <div className="text-sm text-gray-500">
