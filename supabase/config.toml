@@ -1,0 +1,23 @@
+project_id = "wmhbaesggjrqcsgkziic"
+
+[api]
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[auth]
+enabled = true
+image = "supabase/gotrue:v2.165.1"
+port = 9999
+jwt_expiry = 3600
+enable_anonymous_sign_ins = false
+
+[functions.admin-create-user]
+verify_jwt = true
+
+[functions.populate-sample-data]
+verify_jwt = true
+
+[functions.create-sample-users]
+verify_jwt = false
