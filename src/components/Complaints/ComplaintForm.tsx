@@ -227,7 +227,7 @@ const ComplaintForm = ({ onSubmit, onCancel }: ComplaintFormProps) => {
               Back to Dashboard
             </Button>
             <h1 className="text-2xl font-bold text-gray-900">Submit Maintenance Complaint</h1>
-            <p className="text-gray-600">Provide details about the maintenance issue you've encountered</p>
+            <p className="text-gray-600">Provide details about the maintenance issue you have encountered</p>
           </div>
         </div>
       </div>
@@ -353,7 +353,7 @@ const ComplaintForm = ({ onSubmit, onCancel }: ComplaintFormProps) => {
                         />
                       </label>
                       <p className="text-xs text-gray-500 mt-1">
-                        Supported formats: JPG, PNG, GIF, WebP (Max 5MB each)
+                        Supported formats: JPG, PNG, GIF, WebP
                       </p>
                     </div>
                   </div>
