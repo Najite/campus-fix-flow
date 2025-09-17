@@ -7,7 +7,7 @@
       "config": {
         "distDir": "dist"
       }
-    },
+    }
   ],
   "routes": [
     {
